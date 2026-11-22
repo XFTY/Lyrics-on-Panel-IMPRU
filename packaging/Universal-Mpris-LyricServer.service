@@ -1,0 +1,12 @@
+[Unit]
+Description=Lyrics-on-Panel MPRIS2 Backend
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart="@BACKEND_DIR@/run.sh"
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

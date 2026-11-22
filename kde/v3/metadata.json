@@ -1,0 +1,28 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "bogeta329 (v3 Fork)",
+                "Task": "v3 Fork Maintainer"
+            },
+            {
+                "Email": "anicaazhu@gmail.com",
+                "Name": "KangweiZhu (Anicaa Zhu)",
+                "Task": "Original Author"
+            },
+            {
+                "Name": "XFTY",
+                "Task": "Co-Author"
+            }
+        ],
+        "Category": "Multimedia",
+        "Description": "适用于 Plasma 6 的现代面板控件，可实时显示同步歌词。v3.2 分支由 bogeta329 与 XFTY 共同改进，支持 Spotify 快速搜索、多模式歌词匹配、逐字歌词扫过高亮、暂停保持显示、多来源歌词（LRCLIB + 酷狗）、元数据清理以及低 CPU 占用。",
+        "Icon": "preferences-media-playback-amarok",
+        "Id": "lyrics-on-panel-plasma6-v3",
+        "License": "GPLv3",
+        "Name": "Lyrics-on-Panel",
+        "Version": "3.3.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "KPackageStructure": "Plasma/Applet"
+}
