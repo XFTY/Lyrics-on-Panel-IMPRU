@@ -41,7 +41,7 @@ When you pick a mode, the widget only matches lyrics for the applications you ac
 This is mainly to prevent the widget from matching lyrics against video titles while you're watching videos or attending classes, which would waste resources for no reason.
 
 
-![](./image/屏幕截图_20261122_092707.png)
+![](./image/屏幕截图_20261122_152529.png)
 
 ### 3. Word-by-Word Lyrics and Simplified/Traditional Chinese Conversion
 
@@ -55,6 +55,13 @@ This is mainly to prevent the widget from matching lyrics against video titles w
 You can adjust the frame rate to reduce CPU usage. In my testing, 30 FPS is plenty.
 
 ![](./image/image.png)
+
+### 5. Quick Switch
+
+You can switch the recognition mode by clicking the lyrics.
+
+![](./image/image222.png)
+
 
 ## Existing Features
 

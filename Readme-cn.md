@@ -1,6 +1,7 @@
 
 
 <h1 align="center">Lyrics-on-Panel-IMPRU</h1>
+<p align="center"><a href="./Readme.md">English Readme</a></p>
 <p align="center">
   <img src="./image/屏幕截图_20261122_085918.png" alt="Lyrics-on-Panel Screenshot" width="700"/>
 </p>
