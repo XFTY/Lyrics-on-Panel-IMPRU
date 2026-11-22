@@ -55,14 +55,6 @@ PluginSettings {
         maximum: 24
     }
 
-    SliderSetting {
-        settingKey: "lyricTextVerticalOffset"
-        label: "Lyric text vertical offset"
-        defaultValue: 1
-        minimum: -10
-        maximum: 10
-    }
-
     ColorSetting {
         settingKey: "lyricTextColor"
         label: "Lyric text color"
@@ -107,14 +99,6 @@ PluginSettings {
         maximum: 32
     }
 
-    SliderSetting {
-        settingKey: "mediaControllItemVerticalOffset"
-        label: "Media control items vertical offset"
-        defaultValue: 0
-        minimum: -10
-        maximum: 10
-      }
-
     ToggleSetting {
         settingKey: "showMediaControls"
         label: "Show Media Controls"
@@ -122,38 +106,14 @@ PluginSettings {
     }
 
     ToggleSetting {
-        settingKey: "whiteMediaControlIconsChecked"
-        label: "White Media Control Icons"
-        defaultValue: true
-    }
-
-    // Widget Settings
-    StyledText {
-        width: parent.width
-        text: "Widget"
-        font.pixelSize: Theme.fontSizeMedium
-        font.weight: Font.Bold
-        color: Theme.surfaceText
-        topPadding: Theme.spacingM
-    }
-
-    StringSetting {
-        settingKey: "preferedWidgetWidth"
-        label: "Prefered Widget Width"
-        placeholder: "550"
-        defaultValue: "550"
+        settingKey: "showAlbumCover"
+        label: "Show Album Cover"
+        defaultValue: false
     }
 
     ToggleSetting {
-        settingKey: "hideItemWhenNoControlChecked"
-        label: "Hide Item When No Media Control"
+        settingKey: "whiteMediaControlIconsChecked"
+        label: "White Media Control Icons"
         defaultValue: true
-    }
-
-    StringSetting {
-        settingKey: "lxMusicPort"
-        label: "LX Music Local Port"
-        placeholder: "23330"
-        defaultValue: "23330"
     }
 }

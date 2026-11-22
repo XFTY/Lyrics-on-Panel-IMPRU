@@ -1,11 +1,9 @@
 import QtQuick 2.15
-import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.1
 import QtWebSockets
 
 import org.kde.plasma.core 2.0 as PlasmaCore
 import org.kde.plasma.plasmoid 2.0
-import org.kde.plasma.components 3.0 as PlasmaComponents
 
 /**
  * Lyrics on Panel for KDE Plasma 6 - v2.0.0
@@ -257,7 +255,6 @@ PlasmoidItem {
     property bool config_yesPlayMusicChecked: Plasmoid.configuration.yesPlayMusicChecked
     property bool config_lxMusicChecked: Plasmoid.configuration.lxMusicChecked
     property bool config_spotifyChecked: Plasmoid.configuration.spotifyChecked
-    property bool config_compatibleModeChecked: Plasmoid.configuration.compatibleModeChecked
 
     property int config_lyricTextSize: Plasmoid.configuration.lyricTextSize
     property string config_lyricTextColor: Plasmoid.configuration.lyricTextColor
@@ -268,13 +265,10 @@ PlasmoidItem {
 
     property int config_mediaControllSpacing: Plasmoid.configuration.mediaControllSpacing
     property int config_mediaControllItemSize: Plasmoid.configuration.mediaControllItemSize
-    property int config_mediaControllItemVerticalOffset: Plasmoid.configuration.mediaControllItemVerticalOffset
 
     property bool config_whiteMediaControlIconsChecked: Plasmoid.configuration.whiteMediaControlIconsChecked
     property int config_preferedWidgetWidth: Plasmoid.configuration.preferedWidgetWidth
     property bool config_hideItemWhenNoControlChecked: Plasmoid.configuration.hideItemWhenNoControlChecked
-
-    property int config_lxMusicPort: Plasmoid.configuration.lxMusicPort
 
     readonly property string serverHost: "127.0.0.1"
     readonly property int serverPort: 23560
@@ -283,10 +277,8 @@ PlasmoidItem {
     property string currentLyric: ""
     property string currentTitle: ""
     property string currentArtist: ""
-    property string currentAlbum: ""
-    property string currentPlayerIdentity: ""
+    property string currentArtUrl: ""
     property string currentPlayerBusName: ""
-    property int positionMs: 0
     property bool hasActivePlayer: false
     property var availablePlayers: []
     property string selectedPlayer: ""
@@ -412,24 +404,22 @@ PlasmoidItem {
             currentLyric = ""
             currentTitle = ""
             currentArtist = ""
-            currentAlbum = ""
+            currentArtUrl = ""
             playbackStatus = "stopped"
             return
         }
 
         hasActivePlayer = true
         playbackStatus = data.playback_status || "stopped"
-        positionMs = data.position_ms || 0
 
         if (data.player) {
-            currentPlayerIdentity = data.player.identity || ""
             currentPlayerBusName = data.player.bus_name || ""
         }
 
         if (data.track) {
             currentTitle = data.track.title || ""
             currentArtist = data.track.artist || ""
-            currentAlbum = data.track.album || ""
+            currentArtUrl = data.track.art_url || ""
         }
 
         if (data.lyrics && data.lyrics.current_lyric) {

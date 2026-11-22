@@ -54,9 +54,6 @@
         <entry name="albumCoverItemSize" type="Int">
             <default>18</default>
         </entry>
-        <entry name="mediaControllItemVerticalOffset" type="Int">
-            <default>1</default>
-        </entry>
         <entry name="lyricTextVerticalOffset" type="Int">
             <default>0</default>
         </entry>

@@ -2,7 +2,6 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15 as QQC2
 import org.kde.kirigami 2.15 as Kirigami
 import org.kde.kquickcontrols 2.0 as KQControls
-import org.kde.plasma.core 2.0 as PlasmaCore
 import QtQuick.Layouts 1.15 as QQLayouts
 import "i18n.js" as I18n
 
@@ -29,7 +28,6 @@ Kirigami.ScrollablePage {
     property alias cfg_mediaControllSpacing: mediaControllSpacingSpinBox.value
     property alias cfg_mediaControllItemSize: mediaControllItemSizeSpinBox.value
     property alias cfg_albumCoverItemSize: albumCoverItemSizeSpinBox.value
-    property alias cfg_mediaControllItemVerticalOffset: mediaControllItemVerticalOffsetSpinBox.value
     property alias cfg_whiteMediaControlIconsChecked: whiteMediaControlIconsChecked.checked
 
     property alias cfg_dynamicWidth: dynamicWidthCheckBox.checked
@@ -354,15 +352,6 @@ Kirigami.ScrollablePage {
             from: 2
             to: 30
             QQC2.ToolTip.text: I18n.tr(appearancePage.language, "图标之间的水平间距")
-            QQLayouts.Layout.maximumWidth: 130
-        }
-
-        QQC2.SpinBox {
-            id: mediaControllItemVerticalOffsetSpinBox
-            Kirigami.FormData.label: I18n.tr(appearancePage.language, "图标垂直偏移：")
-            from: -20
-            to: 20
-            QQC2.ToolTip.text: I18n.tr(appearancePage.language, "负值上移，正值下移")
             QQLayouts.Layout.maximumWidth: 130
         }
 

@@ -2,7 +2,6 @@ import QtQuick 2.0
 import QtQuick.Controls 2.5 as QQC2
 import org.kde.kirigami 2.4 as Kirigami
 import org.kde.kquickcontrols 2.0 as KQControls
-import org.kde.plasma.core 2.0 as PlasmaCore
 import QtQuick.Layouts 1.0 as QQLayouts
 
 Kirigami.FormLayout {
@@ -129,11 +128,4 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: i18n("LX Music Local Port: ")
         enabled: lxMusicPropriataryRadioButton.checked
     }
-
-    // trackName	true	string	Title of the track
-    // artistName	true	string	Track's artist name
-    // albumName	true	string	Track's album name
-    // duration	true	number	Track's duration
-    // plainLyrics	true	string	Plain lyrics for the track
-    // syncedLyrics	true	string	Synchronized lyrics for the track
-}   
+}

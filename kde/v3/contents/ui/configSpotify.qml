@@ -2,7 +2,6 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15 as QQC2
 import QtQuick.Layouts 1.15 as QQLayouts
 import org.kde.kirigami 2.20 as Kirigami
-import org.kde.kquickcontrols 2.0 as KQC
 import QtWebSockets 1.1
 import "i18n.js" as I18n
 import org.kde.plasma.plasmoid

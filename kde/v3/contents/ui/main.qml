@@ -1,12 +1,13 @@
 import QtQuick 2.15
-import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.1
 import QtWebSockets
 
 import org.kde.plasma.core 2.0 as PlasmaCore
 import org.kde.plasma.plasmoid 2.0
-import org.kde.plasma.components 3.0 as PlasmaComponents
 import "i18n.js" as I18n
+import "services/network.js" as Network
+import "services/poll.js" as Poll
+import "services/transitions.js" as Transitions
 
 /**
  * Lyrics on Panel for KDE Plasma 6 - v2.0.0
@@ -326,598 +327,39 @@ PlasmoidItem {
             }
         }
 
-        RowLayout {
+        MediaControls {
             id: iconsContainer
-            Layout.preferredWidth: 3 * config_mediaControllItemSize + (config_showAlbumCover && currentArtUrl !== "" ? (config_albumCoverItemSize + config_mediaControllSpacing) : 0) + 2 * config_mediaControllSpacing
-            Layout.preferredHeight: Math.max(config_mediaControllItemSize, config_albumCoverItemSize)
-            Layout.alignment: Qt.AlignVCenter
-            Layout.rightMargin: 1
+            whiteIcons: config_whiteMediaControlIconsChecked
+            controlSize: config_mediaControllItemSize
+            albumCoverSize: config_albumCoverItemSize
             spacing: config_mediaControllSpacing
-
-            Image {
-                source: backwardIcon
-                sourceSize.width: config_mediaControllItemSize
-                sourceSize.height: config_mediaControllItemSize
-
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: sendControl("previous")
-                }
-            }
-
-            Image {
-                source: (playbackStatus === "playing") ? pauseIcon : playIcon
-                sourceSize.width: config_mediaControllItemSize
-                sourceSize.height: config_mediaControllItemSize
-
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: sendControl("play_pause")
-                }
-            }
-
-            Image {
-                source: forwardIcon
-                sourceSize.width: config_mediaControllItemSize
-                sourceSize.height: config_mediaControllItemSize
-
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: sendControl("next")
-                }
-            }
-
-            Item {
-                id: mediaPlayerIconContainer
-                width: config_albumCoverItemSize
-                height: config_albumCoverItemSize
-                visible: config_showAlbumCover && currentArtUrl !== ""
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Math.max(2, Math.round(config_albumCoverItemSize * 0.2))
-                    color: "transparent"
-                    clip: true
-
-                    Image {
-                        id: mediaPlayerIcon
-                        anchors.fill: parent
-                        source: (config_showAlbumCover && displayedArtUrl !== "") ? displayedArtUrl : ""
-                        sourceSize.width: config_albumCoverItemSize * 2
-                        sourceSize.height: config_albumCoverItemSize * 2
-                        fillMode: Image.PreserveAspectCrop
-                        smooth: true
-                        mipmap: true
-                        asynchronous: true
-                        transformOrigin: Item.Center
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: config_enableSpotifySearch
-                    cursorShape: config_enableSpotifySearch ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onClicked: {
-                        if (config_enableSpotifySearch) {
-                            var pos = mediaPlayerIconContainer.mapToGlobal(0, mediaPlayerIconContainer.height)
-                            spotifySearchPopup.x = pos.x - (320 - mediaPlayerIconContainer.width) / 2
-                            spotifySearchPopup.y = pos.y + 6
-                            spotifySearchPopup.visible = !spotifySearchPopup.visible
-                        }
-                    }
-                }
+            playbackStatus: root.playbackStatus
+            showAlbumCover: config_showAlbumCover
+            artUrl: root.currentArtUrl
+            spotifySearchEnabled: config_enableSpotifySearch
+            onPreviousClicked: Network.sendControl("previous")
+            onPlayPauseClicked: Network.sendControl("play_pause")
+            onNextClicked: Network.sendControl("next")
+            onAlbumCoverClicked: function(gx, gy, w) {
+                spotifySearchPopup.x = gx - (320 - w) / 2
+                spotifySearchPopup.y = gy + 6
+                spotifySearchPopup.visible = !spotifySearchPopup.visible
             }
         }
     }
 
-    PlasmaCore.Dialog {
+    SpotifySearchPopup {
         id: spotifySearchPopup
-        location: PlasmaCore.Types.Floating
-        type: PlasmaCore.Dialog.PopupMenu
-        flags: Qt.WindowStaysOnTopHint
-        hideOnWindowDeactivate: true
-
-        onVisibleChanged: {
-            if (visible) {
-                searchInput.forceActiveFocus()
-                if (searchInput.text.trim() !== "") {
-                    performSearch(searchInput.text)
-                }
-            } else {
-                searchInput.text = ""
-                spotifySearchResults = []
-                spotifySearching = false
-            }
+        language: root.config_language
+        clientId: root.config_spotifyClientId
+        clientSecret: root.config_spotifyClientSecret
+        onSearchRequested: function(query, type) {
+            Network.searchSpotify(query, type)
         }
-
-        mainItem: Rectangle {
-            id: searchPopupContainer
-            width: 350
-            height: 420
-            color: "#121215"
-            radius: 14
-            border.color: Qt.rgba(1, 1, 1, 0.12)
-            border.width: 1
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 10
-
-                // Top Header Badge
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 6
-
-                    Rectangle {
-                        width: 8
-                        height: 8
-                        radius: 4
-                        color: "#1db954"
-                    }
-
-                    Text {
-                        text: "Spotify 快速搜索"
-                        color: "#d4d4d8"
-                        font.pixelSize: 11
-                        font.bold: true
-                        Layout.fillWidth: true
-                    }
-
-                    Rectangle {
-                        width: 34
-                        height: 18
-                        radius: 4
-                        color: "#27272a"
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "ESC"
-                            color: "#71717a"
-                            font.pixelSize: 9
-                            font.bold: true
-                        }
-                    }
-                }
-
-                // Search Bar Input
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 38
-                    color: "#1e1e24"
-                    radius: 10
-                    border.color: searchInput.activeFocus ? "#1db954" : Qt.rgba(1, 1, 1, 0.1)
-                    border.width: 1
-
-                    Behavior on border.color {
-                        ColorAnimation { duration: 150 }
-                    }
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 8
-                        spacing: 8
-
-                        Text {
-                            text: "🔍"
-                            font.pixelSize: 12
-                            color: searchInput.activeFocus ? "#1db954" : "#71717a"
-                        }
-
-                        TextField {
-                            id: searchInput
-                            Layout.fillWidth: true
-                            placeholderText: I18n.tr(root.config_language, "搜索歌曲或艺术家...")
-                            placeholderTextColor: "#71717a"
-                            color: "#ffffff"
-                            font.pixelSize: 13
-                            background: null
-                            selectByMouse: true
-
-                            onTextChanged: {
-                                searchDebounceTimer.restart()
-                            }
-
-                            onAccepted: {
-                                performSearch(text)
-                            }
-                        }
-
-                        Rectangle {
-                            visible: searchInput.text.length > 0
-                            width: 20
-                            height: 20
-                            radius: 10
-                            color: clearMouseArea.containsMouse ? "#3f3f46" : "transparent"
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "✕"
-                                color: "#a1a1aa"
-                                font.pixelSize: 10
-                            }
-
-                            MouseArea {
-                                id: clearMouseArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    searchInput.text = ""
-                                    spotifySearchResults = []
-                                    searchInput.forceActiveFocus()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Type Selector Tabs (Only visible when Spotify API credentials are configured)
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: config_spotifyClientId !== "" && config_spotifyClientSecret !== ""
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 28
-                        radius: 7
-                        color: selectedSearchType === "track" ? Qt.rgba(0.114, 0.725, 0.329, 0.2) : (trackTabMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03))
-                        border.color: selectedSearchType === "track" ? "#1db954" : Qt.rgba(1, 1, 1, 0.1)
-                        border.width: selectedSearchType === "track" ? 1.5 : 1
-
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: 5
-                            Text {
-                                text: "🎵"
-                                font.pixelSize: 11
-                            }
-                            Text {
-                                text: I18n.tr(root.config_language, "歌曲")
-                                color: selectedSearchType === "track" ? "#ffffff" : "#a1a1aa"
-                                font.pixelSize: 11
-                                font.bold: selectedSearchType === "track"
-                            }
-                        }
-
-                        MouseArea {
-                            id: trackTabMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (selectedSearchType !== "track") {
-                                    selectedSearchType = "track"
-                                    spotifySearchResults = []
-                                    spotifySearching = false
-                                    if (searchInput.text.trim() !== "") {
-                                        performSearch(searchInput.text)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 28
-                        radius: 7
-                        color: selectedSearchType === "playlist" ? Qt.rgba(0.114, 0.725, 0.329, 0.2) : (playlistTabMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03))
-                        border.color: selectedSearchType === "playlist" ? "#1db954" : Qt.rgba(1, 1, 1, 0.1)
-                        border.width: selectedSearchType === "playlist" ? 1.5 : 1
-
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: 5
-                            Text {
-                                text: "📑"
-                                font.pixelSize: 11
-                            }
-                            Text {
-                                text: I18n.tr(root.config_language, "播放列表")
-                                color: selectedSearchType === "playlist" ? "#ffffff" : "#a1a1aa"
-                                font.pixelSize: 11
-                                font.bold: selectedSearchType === "playlist"
-                            }
-                        }
-
-                        MouseArea {
-                            id: playlistTabMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (selectedSearchType !== "playlist") {
-                                    selectedSearchType = "playlist"
-                                    spotifySearchResults = []
-                                    spotifySearching = false
-                                    performSearch(searchInput.text)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Results Container
-                Item {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-
-                    // Loading State
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        visible: spotifySearching
-                        spacing: 8
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: "⚡"
-                            font.pixelSize: 22
-                        }
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: I18n.tr(root.config_language, "正在 Spotify 中搜索...")
-                            color: "#1db954"
-                            font.pixelSize: 12
-                            font.bold: true
-                        }
-                    }
-
-                    // Empty State (No Results)
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        visible: !spotifySearching && searchInput.text.trim() !== "" && spotifySearchResults.length === 0
-                        spacing: 6
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: "🔍"
-                            font.pixelSize: 24
-                            opacity: 0.6
-                        }
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: selectedSearchType === "playlist" ? I18n.tr(root.config_language, "未找到播放列表") : I18n.tr(root.config_language, "未找到歌曲")
-                            color: "#d4d4d8"
-                            font.pixelSize: 13
-                            font.bold: true
-                        }
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: selectedSearchType === "playlist" ? I18n.tr(root.config_language, "试试用其他播放列表名称搜索") : I18n.tr(root.config_language, "试试用其他歌曲名或艺术家搜索")
-                            color: "#71717a"
-                            font.pixelSize: 11
-                        }
-                    }
-
-                    // Initial Guide State
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        visible: !spotifySearching && searchInput.text.trim() === "" && spotifySearchResults.length === 0
-                        spacing: 6
-                        width: parent.width - 40
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: selectedSearchType === "playlist" ? "📑" : "🎵"
-                            font.pixelSize: 28
-                        }
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: selectedSearchType === "playlist" ? I18n.tr(root.config_language, "搜索任意播放列表") : I18n.tr(root.config_language, "搜索任意歌曲")
-                            color: "#ffffff"
-                            font.pixelSize: 13
-                            font.bold: true
-                        }
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: selectedSearchType === "playlist" ? I18n.tr(root.config_language, "输入内容以查找并在 Spotify 中播放播放列表") : I18n.tr(root.config_language, "输入内容以直接在 Spotify 中播放")
-                            color: "#71717a"
-                            font.pixelSize: 11
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-                    }
-
-                    // Results List
-                    ListView {
-                        id: resultsListView
-                        anchors.fill: parent
-                        visible: !spotifySearching && spotifySearchResults.length > 0
-                        model: spotifySearchResults
-                        spacing: 4
-                        clip: true
-
-                        header: Item {
-                            width: resultsListView.width
-                            height: selectedSearchType === "playlist" && searchInput.text.trim() === "" ? 24 : 0
-                            visible: selectedSearchType === "playlist" && searchInput.text.trim() === ""
-
-                            Text {
-                                anchors.left: parent.left
-                                anchors.leftMargin: 8
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: I18n.tr(root.config_language, "📚 你的播放列表库")
-                                color: "#1db954"
-                                font.pixelSize: 11
-                                font.bold: true
-                            }
-                        }
-
-                        delegate: Rectangle {
-                            width: resultsListView.width
-                            height: 50
-                            color: itemMouseArea.containsMouse ? "#22222a" : "transparent"
-                            radius: 8
-
-                            Behavior on color {
-                                ColorAnimation { duration: 100 }
-                            }
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 8
-                                anchors.rightMargin: 10
-                                spacing: 10
-
-                                // Album Art Thumbnail
-                                Rectangle {
-                                    Layout.preferredWidth: 36
-                                    Layout.preferredHeight: 36
-                                    radius: 6
-                                    color: "#1e1e24"
-                                    clip: true
-                                    border.color: Qt.rgba(1, 1, 1, 0.08)
-                                    border.width: 1
-
-                                    Image {
-                                        anchors.fill: parent
-                                        source: modelData.art_url || ""
-                                        fillMode: Image.PreserveAspectCrop
-                                        smooth: true
-                                        mipmap: true
-                                        asynchronous: true
-                                    }
-                                }
-
-                                // Track Information
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-
-                                    Text {
-                                        text: modelData.title || ""
-                                        color: itemMouseArea.containsMouse ? "#1db954" : "#ffffff"
-                                        font.pixelSize: 12
-                                        font.bold: true
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-
-                                        Behavior on color {
-                                            ColorAnimation { duration: 100 }
-                                        }
-                                    }
-
-                                    Text {
-                                        text: modelData.artist || ""
-                                        color: "#a1a1aa"
-                                        font.pixelSize: 11
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-                                    }
-                                }
-
-                                // Right side: Duration / Playlist Badge or Play Indicator
-                                Item {
-                                    Layout.preferredWidth: modelData.item_type === "playlist" ? 64 : 36
-                                    Layout.preferredHeight: 24
-
-                                    // Duration (for tracks)
-                                    Text {
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        visible: !itemMouseArea.containsMouse && modelData.item_type !== "playlist"
-                                        text: formatTrackDuration(modelData.duration_ms)
-                                        color: "#71717a"
-                                        font.pixelSize: 11
-                                    }
-
-                                    // Playlist tag (for playlists)
-                                    Rectangle {
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        visible: !itemMouseArea.containsMouse && modelData.item_type === "playlist"
-                                        width: 58
-                                        height: 18
-                                        radius: 4
-                                        color: Qt.rgba(0.114, 0.725, 0.329, 0.15)
-                                        border.color: Qt.rgba(0.114, 0.725, 0.329, 0.3)
-                                        border.width: 1
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "播放列表"
-                                            color: "#1db954"
-                                            font.pixelSize: 9
-                                            font.bold: true
-                                        }
-                                    }
-
-                                    // Hover Play Button
-                                    Rectangle {
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        visible: itemMouseArea.containsMouse
-                                        width: 26
-                                        height: 26
-                                        radius: 13
-                                        color: "#1db954"
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            anchors.horizontalCenterOffset: 1
-                                            text: "▶"
-                                            color: "#000000"
-                                            font.pixelSize: 10
-                                            font.bold: true
-                                        }
-                                    }
-                                }
-                            }
-
-                            MouseArea {
-                                id: itemMouseArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    playSpotifyTrack(modelData.uri)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // API Key setup hint
-                Text {
-                    visible: !config_spotifyClientId || !config_spotifyClientSecret
-                    Layout.fillWidth: true
-                    text: I18n.tr(root.config_language, "💡 在设置中配置 Spotify Client ID 即可一键精确播放。")
-                    color: "#71717a"
-                    font.pixelSize: 10
-                    horizontalAlignment: Text.AlignHCenter
-                    elide: Text.ElideRight
-                }
-            }
+        onPlayRequested: function(uri) {
+            Network.playSpotifyTrack(uri)
         }
     }
-
-    function formatTrackDuration(ms) {
-        if (!ms || ms <= 0) return ""
-        var totalSec = Math.floor(ms / 1000)
-        var min = Math.floor(totalSec / 60)
-        var sec = totalSec % 60
-        return min + ":" + (sec < 10 ? "0" : "") + sec
-    }
-
-    property string backwardIcon: config_whiteMediaControlIconsChecked ? "../assets/media-backward-white.svg" : "../assets/media-backward.svg"
-    property string pauseIcon: config_whiteMediaControlIconsChecked ? "../assets/media-pause-white.svg" : "../assets/media-pause.svg"
-    property string forwardIcon: config_whiteMediaControlIconsChecked ? "../assets/media-forward-white.svg" : "../assets/media-forward.svg"
-    property string playIcon: config_whiteMediaControlIconsChecked ? "../assets/media-play-white.svg" : "../assets/media-play.svg"
 
     property bool config_showAlbumCover: Plasmoid.configuration.showAlbumCover
     property bool config_enableSpotifySearch: Plasmoid.configuration.enableSpotifySearch !== undefined ? Plasmoid.configuration.enableSpotifySearch : true
@@ -953,7 +395,6 @@ PlasmoidItem {
     property int config_mediaControllSpacing: Plasmoid.configuration.mediaControllSpacing
     property int config_mediaControllItemSize: Plasmoid.configuration.mediaControllItemSize
     property int config_albumCoverItemSize: Plasmoid.configuration.albumCoverItemSize > 0 ? Plasmoid.configuration.albumCoverItemSize : 18
-    property int config_mediaControllItemVerticalOffset: Plasmoid.configuration.mediaControllItemVerticalOffset
 
     property bool config_whiteMediaControlIconsChecked: Plasmoid.configuration.whiteMediaControlIconsChecked
     property int config_preferedWidgetWidth: Plasmoid.configuration.preferedWidgetWidth > 0 ? Plasmoid.configuration.preferedWidgetWidth : 850
@@ -1011,66 +452,9 @@ PlasmoidItem {
 
     property string currentTitle: ""
     property string currentArtist: ""
-    property string currentAlbum: ""
     property string currentArtUrl: ""
-    property string displayedArtUrl: currentArtUrl
-
-    onCurrentArtUrlChanged: {
-        if (config_showAlbumCover && currentArtUrl !== "" && displayedArtUrl !== "") {
-            artChangeAnimation.restart()
-        } else {
-            displayedArtUrl = currentArtUrl
-        }
-    }
-
-    SequentialAnimation {
-        id: artChangeAnimation
-        
-        ParallelAnimation {
-            NumberAnimation {
-                target: mediaPlayerIcon
-                property: "opacity"
-                to: 0.0
-                duration: 160
-                easing.type: Easing.InQuad
-            }
-            NumberAnimation {
-                target: mediaPlayerIcon
-                property: "scale"
-                to: 0.75
-                duration: 160
-                easing.type: Easing.InQuad
-            }
-        }
-        
-        ScriptAction {
-            script: {
-                displayedArtUrl = currentArtUrl
-            }
-        }
-        
-        ParallelAnimation {
-            NumberAnimation {
-                target: mediaPlayerIcon
-                property: "opacity"
-                to: 1.0
-                duration: 240
-                easing.type: Easing.OutCubic
-            }
-            NumberAnimation {
-                target: mediaPlayerIcon
-                property: "scale"
-                to: 1.0
-                duration: 240
-                easing.type: Easing.OutBack
-            }
-        }
-    }
-    property string currentPlayerIdentity: ""
     property string currentPlayerBusName: ""
-    property int positionMs: 0
     property bool hasActivePlayer: false
-    property var availablePlayers: []
     property string selectedPlayer: ""
     property int animationDuration: {
         var overflow = Math.abs(lyricColumn.width - lyricTextContainer.width);
@@ -1106,7 +490,7 @@ PlasmoidItem {
         running: pollSocket.status === WebSocket.Open
         repeat: true
         onTriggered: {
-            sendPollRequest()
+            Network.sendPollRequest()
         }
     }
 
@@ -1117,7 +501,7 @@ PlasmoidItem {
         running: karaokeTimingActive
         onTriggered: {
             karaokePositionMs = karaokeBasePositionMs + (Date.now() - karaokeBaseTimestamp)
-            maybePromoteKaraokeLine()
+            Transitions.maybePromoteKaraokeLine()
         }
     }
 
@@ -1129,7 +513,7 @@ PlasmoidItem {
         onStatusChanged: {
             if (pollSocket.status === WebSocket.Open) {
                 console.log("Poll WebSocket connected")
-                sendPollRequest()
+                Network.sendPollRequest()
             } else if (pollSocket.status === WebSocket.Closed) {
                 console.log("Poll WebSocket closed, reconnecting...")
                 hasActivePlayer = false
@@ -1145,7 +529,7 @@ PlasmoidItem {
         onTextMessageReceived: function(message) {
             try {
                 var data = JSON.parse(message)
-                handlePollResponse(data)
+                Poll.handlePollResponse(data)
             } catch (e) {
                 console.log("Error parsing poll response:", e)
             }
@@ -1169,77 +553,15 @@ PlasmoidItem {
             try {
                 var data = JSON.parse(message)
                 if (data.type === "search_results") {
-                    if (!data.search_type || data.search_type === selectedSearchType) {
-                        spotifySearchResults = data.results || []
-                        spotifySearching = false
-                    }
+                    spotifySearchPopup.setResults(data.search_type, data.results)
                 } else if (data.action === "play_uri") {
-                    sendPollRequest()
+                    Network.sendPollRequest()
                 } else if (!data.success) {
                     console.log("Control command failed")
                 }
             } catch (e) {
                 console.log("Error parsing control response:", e)
             }
-        }
-    }
-
-    property var spotifySearchResults: []
-    property bool spotifySearching: false
-    property string selectedSearchType: "track"
-
-    Timer {
-        id: searchDebounceTimer
-        interval: 350
-        running: false
-        repeat: false
-        onTriggered: performSearch(searchInput.text)
-    }
-
-    function performSearch(query) {
-        var cleanQ = query ? query.trim() : ""
-        if (cleanQ === "" && selectedSearchType !== "playlist") {
-            spotifySearchResults = []
-            spotifySearching = false
-            return
-        }
-        if (controlSocket.status === WebSocket.Open) {
-            spotifySearching = true
-            var req = {
-                "action": "search_spotify",
-                "query": cleanQ,
-                "limit": 20,
-                "client_id": config_spotifyClientId,
-                "client_secret": config_spotifyClientSecret,
-                "search_type": selectedSearchType
-            }
-            controlSocket.sendTextMessage(JSON.stringify(req))
-        }
-    }
-
-    function playSpotifyTrack(uri) {
-        if (controlSocket.status === WebSocket.Open) {
-            var req = {
-                "action": "play_uri",
-                "uri": uri,
-                "player": "org.mpris.MediaPlayer2.spotify"
-            }
-            controlSocket.sendTextMessage(JSON.stringify(req))
-            sendPollRequest()
-            quickPollTimer.restart()
-            spotifySearchPopup.visible = false
-        }
-    }
-
-    function sendPollRequest() {
-        if (pollSocket.status === WebSocket.Open) {
-            var modeNames = ["global", "browser", "streaming"]
-            var request = {
-                "player": requestedPlayer || null,
-                "mode": modeNames[config_playerMode] || "global",
-                "convert_to_simplified": config_convertToSimplified
-            }
-            pollSocket.sendTextMessage(JSON.stringify(request))
         }
     }
 
@@ -1261,124 +583,19 @@ PlasmoidItem {
     }
 
     onCurrentLyricChanged: {
-        triggerTransition()
+        Transitions.triggerTransition()
     }
 
     onNextLyricChanged: {
-        if (!fadeTransitionAnimation.running && !slideTransitionAnimation.running) {
-            displayedNextLyric = nextLyric
-        }
+        Transitions.handleNextLyricChanged()
     }
 
     onLrc_not_existsChanged: {
-        if (!currentLyric) {
-            triggerTransition()
-        }
+        Transitions.handleLrcNotExistsChanged()
     }
 
     onScrollingLyricsActiveChanged: {
-        if (scrollingLyricsActive) {
-            fadeTransitionAnimation.stop()
-            slideTransitionAnimation.stop()
-            nextLyricFadeIn.stop()
-            scrollingLyricAnimation.stop()
-            lyricColumn.opacity = 1.0
-            currentTranslate.y = 0
-            currentLyricText.opacity = 1.0
-            if (currentLyric && displayedLyric !== currentLyric) {
-                playScrollingLyricAnimation()
-            }
-        } else {
-            fadeTransitionAnimation.stop()
-            slideTransitionAnimation.stop()
-            nextLyricFadeIn.stop()
-            scrollingLyricAnimation.stop()
-            lyricColumn.opacity = 1.0
-            currentLyricText.opacity = 1.0
-            currentTranslate.y = 0
-            nextTranslate.y = 0
-            nextScale.xScale = 0.85
-            nextScale.yScale = 0.85
-            nextLyricText.opacity = config_nextLyricOpacity
-            displayedLyric = currentLyric
-            displayedNextLyric = nextLyric
-        }
-    }
-
-    function maybePromoteKaraokeLine() {
-        if (!config_karaokeLyrics || playbackStatus !== "playing")
-            return
-        if (!nextLyric || nextLineStartMs <= 0 || nextLineStartMs <= currentLineStartMs)
-            return
-        if (karaokeTimeMs < nextLineStartMs)
-            return
-
-        var promotedLyric = nextLyric
-        currentWords = nextWords
-        hasWordLyrics = nextHasWordLyrics
-        currentLineStartMs = nextLineStartMs
-        currentLineEndMs = nextLineEndMs
-        nextLyric = afterNextLyric
-        nextWords = afterNextWords
-        nextHasWordLyrics = afterNextHasWordLyrics
-        nextLineStartMs = afterNextLineStartMs
-        nextLineEndMs = afterNextLineEndMs
-        afterNextLyric = ""
-        afterNextWords = []
-        afterNextHasWordLyrics = false
-        afterNextLineStartMs = 0
-        afterNextLineEndMs = 0
-        currentLyric = promotedLyric
-    }
-
-    function triggerTransition() {
-        if (scrollingLyricsActive) {
-            playScrollingLyricAnimation()
-            return
-        }
-
-        if (karaokeLyricsActive) {
-            fadeTransitionAnimation.stop()
-            slideTransitionAnimation.stop()
-            nextLyricFadeIn.stop()
-            scrollingLyricAnimation.stop()
-            lyricColumn.opacity = 1.0
-            displayedLyric = currentLyric
-            displayedNextLyric = nextLyric
-            currentTranslate.y = 0
-            nextTranslate.y = 0
-            nextScale.xScale = 0.85
-            nextScale.yScale = 0.85
-            currentLyricText.opacity = 1.0
-            nextLyricText.opacity = config_nextLyricOpacity
-            return
-        }
-
-        if (config_transitionDurationMs <= 0) {
-            displayedLyric = currentLyric
-            displayedNextLyric = nextLyric
-            return
-        }
-
-        var canSlide = config_showNextLyric && displayedNextLyric !== "" && currentLyric === displayedNextLyric;
-        if (canSlide) {
-            slideTransitionAnimation.restart()
-        } else {
-            fadeTransitionAnimation.restart()
-        }
-    }
-
-    function playScrollingLyricAnimation() {
-        fadeTransitionAnimation.stop()
-        slideTransitionAnimation.stop()
-        nextLyricFadeIn.stop()
-        scrollingLyricAnimation.stop()
-        lyricColumn.opacity = 1.0
-        displayedLyric = currentLyric
-        displayedNextLyric = nextLyric
-        currentTranslate.y = 6
-        currentLyricText.opacity = 0.45
-        scrollingLyricAnimation.start()
+        Transitions.handleScrollingLyricsActiveChanged()
     }
 
     ParallelAnimation {
@@ -1509,160 +726,13 @@ PlasmoidItem {
         easing.type: Easing.OutQuad
     }
 
-    function handlePollResponse(data) {
-        if (!data || !data.player) {
-            hasActivePlayer = false
-            hasSyncedLyrics = false
-            hasWordLyrics = false
-            currentWords = []
-            currentLineStartMs = 0
-            currentLineEndMs = 0
-            nextWords = []
-            nextHasWordLyrics = false
-            nextLineStartMs = 0
-            nextLineEndMs = 0
-            afterNextLyric = ""
-            afterNextWords = []
-            afterNextHasWordLyrics = false
-            afterNextLineStartMs = 0
-            afterNextLineEndMs = 0
-            karaokeBasePositionMs = 0
-            karaokeBaseTimestamp = Date.now()
-            karaokePositionMs = 0
-            currentLyric = ""
-            nextLyric = ""
-            currentLyricDurationMs = 0
-            timeRemainingMs = 0
-            currentTitle = ""
-            currentArtist = ""
-            currentAlbum = ""
-            playbackStatus = "stopped"
-            return
-        }
-
-        hasActivePlayer = true
-        playbackStatus = data.playback_status || "stopped"
-        positionMs = data.position_ms || 0
-
-        if (data.player) {
-            currentPlayerIdentity = data.player.identity || ""
-            currentPlayerBusName = data.player.bus_name || ""
-        }
-
-        var incomingTrackTitle = data.track ? (data.track.title || "") : ""
-        var trackChanged = !!data.track && incomingTrackTitle !== currentTitle
-
-        if (data.track) {
-            currentTitle = data.track.title || ""
-            currentArtist = data.track.artist || ""
-            currentAlbum = data.track.album || ""
-            currentArtUrl = data.track.art_url || ""
-        }
-
-        if (data.lyrics) {
-            var incomingWords = Array.isArray(data.lyrics.current_words) ? data.lyrics.current_words : []
-            var incomingNextWords = Array.isArray(data.lyrics.next_words) ? data.lyrics.next_words : []
-            var incomingAfterNextWords = Array.isArray(data.lyrics.after_next_words) ? data.lyrics.after_next_words : []
-            var incomingPos = (data.lyrics.position_ms !== undefined)
-                ? data.lyrics.position_ms
-                : Math.floor((data.position_ms || 0) / 1000)
-            var incomingPlaying = (data.playback_status || "stopped") === "playing"
-            var canSmoothClock = incomingPlaying && karaokeBaseTimestamp > 0
-            var clockResynced = !canSmoothClock
-            if (canSmoothClock) {
-                var localNow = karaokeBasePositionMs + (Date.now() - karaokeBaseTimestamp)
-                var drift = incomingPos - localNow
-                if (Math.abs(drift) > 1500) {
-                    karaokeBasePositionMs = incomingPos
-                    clockResynced = true
-                } else {
-                    karaokeBasePositionMs = localNow
-                }
-            } else {
-                karaokeBasePositionMs = incomingPos
-            }
-            karaokeBaseTimestamp = Date.now()
-            karaokePositionMs = karaokeBasePositionMs
-
-            var incomingLyric = data.lyrics.current_lyric || ""
-            var incomingStart = data.lyrics.current_line_start_ms || 0
-            var localLineAhead = !trackChanged && !clockResynced && incomingPlaying && config_karaokeLyrics
-                && incomingStart < currentLineStartMs
-
-            hasSyncedLyrics = data.lyrics.has_synced_lyrics === true
-            if (!localLineAhead) {
-                if (currentLyric !== incomingLyric
-                        || currentLineStartMs !== incomingStart
-                        || currentWords.length !== incomingWords.length)
-                    currentWords = incomingWords
-                hasWordLyrics = data.lyrics.has_word_lyrics === true
-                currentLineStartMs = incomingStart
-                currentLineEndMs = data.lyrics.current_line_end_ms || 0
-                currentLyric = incomingLyric
-                nextLyric = data.lyrics.next_lyric || ""
-                nextWords = incomingNextWords
-                nextHasWordLyrics = data.lyrics.next_has_word_lyrics === true
-                nextLineStartMs = data.lyrics.next_line_start_ms || 0
-                nextLineEndMs = data.lyrics.next_line_end_ms || 0
-                afterNextLyric = data.lyrics.after_next_lyric || ""
-                afterNextWords = incomingAfterNextWords
-                afterNextHasWordLyrics = data.lyrics.after_next_has_word_lyrics === true
-                afterNextLineStartMs = data.lyrics.after_next_line_start_ms || 0
-                afterNextLineEndMs = data.lyrics.after_next_line_end_ms || 0
-                currentLyricDurationMs = data.lyrics.current_lyric_duration_ms || 0
-                timeRemainingMs = data.lyrics.time_remaining_ms || 0
-            }
-        } else {
-            hasSyncedLyrics = false
-            hasWordLyrics = false
-            currentWords = []
-            currentLineStartMs = 0
-            currentLineEndMs = 0
-            nextLyric = ""
-            nextWords = []
-            nextHasWordLyrics = false
-            nextLineStartMs = 0
-            nextLineEndMs = 0
-            afterNextLyric = ""
-            afterNextWords = []
-            afterNextHasWordLyrics = false
-            afterNextLineStartMs = 0
-            afterNextLineEndMs = 0
-            karaokeBasePositionMs = Math.floor((data.position_ms || 0) / 1000)
-            karaokeBaseTimestamp = Date.now()
-            karaokePositionMs = karaokeBasePositionMs
-            currentLyric = ""
-            currentLyricDurationMs = 0
-            timeRemainingMs = 0
-        }
-
-        if (data.available_players) {
-            availablePlayers = data.available_players
-        }
-    }
-
     Timer {
         id: quickPollTimer
         interval: 100
         running: false
         repeat: false
-        onTriggered: sendPollRequest()
+        onTriggered: Network.sendPollRequest()
     }
 
-    function sendControl(action) {
-        if (controlSocket.status !== WebSocket.Open) {
-            console.log("Control socket not connected")
-            return
-        }
-        if (action === "play_pause") {
-            playbackStatus = (playbackStatus === "playing") ? "paused" : "playing"
-        }
-        var request = {
-            "action": action,
-            "player": requestedPlayer || currentPlayerBusName || null
-        }
-        controlSocket.sendTextMessage(JSON.stringify(request))
-        sendPollRequest()
-        quickPollTimer.restart()
-    }
+
 }

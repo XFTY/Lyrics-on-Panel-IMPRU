@@ -2,7 +2,6 @@ import QtQuick 2.0
 import QtQuick.Controls 2.5 as QQC2
 import org.kde.kirigami 2.4 as Kirigami
 import org.kde.kquickcontrols 2.0 as KQControls
-import org.kde.plasma.core 2.0 as PlasmaCore
 import QtQuick.Layouts 1.0 as QQLayouts
 
 Kirigami.FormLayout {
@@ -21,14 +20,13 @@ Kirigami.FormLayout {
     property alias cfg_lyricTextVerticalOffset: lyricTextVerticalOffsetSpinBox.value
     property alias cfg_lyricTextAlignment: lyricTextAlignmentComboBox.currentIndex
 
+    property alias cfg_showAlbumCover: showAlbumCoverCheckBox.checked
     property alias cfg_mediaControllSpacing: mediaControllSpacingSpinBox.value
     property alias cfg_mediaControllItemSize: mediaControllItemSizeSpinBox.value
-    property alias cfg_mediaControllItemVerticalOffset: mediaControllItemVerticalOffsetSpinBox.value
     property alias cfg_whiteMediaControlIconsChecked: whiteMediaControlIconsChecked.checked
 
     property alias cfg_preferedWidgetWidth: preferedWidgetWidthTextField.text
     property alias cfg_hideItemWhenNoControlChecked: hideItemWhenNoControlChecked.checked
-    property alias cfg_lxMusicPort: lxMusicPortTextField.text
 
     QQC2.RadioButton {
         id: yesPlayMusicPropriataryRadioButton
@@ -81,11 +79,12 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: i18n("Media control items size: ")
     }
 
-    QQC2.SpinBox {
-        id: mediaControllItemVerticalOffsetSpinBox
-        Kirigami.FormData.label: i18n("Media control items vertical offset: ")
+    QQC2.CheckBox {
+        id: showAlbumCoverCheckBox
+        Kirigami.FormData.label: i18n("Show Album Cover: ")
+        checkable: true
     }
-    
+
     QQLayouts.RowLayout {
         Kirigami.FormData.label: i18n("Lyric text color: ")
 
@@ -128,17 +127,4 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: i18n("Hide Item When No Media Control: ")
         checkable: true
     }
-
-    QQC2.TextField {
-        id: lxMusicPortTextField
-        Kirigami.FormData.label: i18n("LX Music Local Port: ")
-        enabled: lxMusicPropriataryRadioButton.checked
-    }
-
-    // trackName	true	string	Title of the track
-    // artistName	true	string	Track's artist name
-    // albumName	true	string	Track's album name
-    // duration	true	number	Track's duration
-    // plainLyrics	true	string	Plain lyrics for the track
-    // syncedLyrics	true	string	Synchronized lyrics for the track
-}   
+}
