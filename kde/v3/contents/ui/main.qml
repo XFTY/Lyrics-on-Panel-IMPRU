@@ -146,11 +146,13 @@ PlasmoidItem {
 
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground | PlasmaCore.Types.ConfigurableBackground
 
-    Plasmoid.status: (config_playerMode !== 0 && !hasActivePlayer)
-        ? PlasmaCore.Types.HiddenStatus
-        : (hasActivePlayer || !config_hideItemWhenNoControlChecked
-            ? PlasmaCore.Types.ActiveStatus
-            : PlasmaCore.Types.HiddenStatus)
+    Plasmoid.status: config_alwaysVisible
+        ? PlasmaCore.Types.ActiveStatus
+        : ((config_playerMode !== 0 && !hasActivePlayer)
+            ? PlasmaCore.Types.HiddenStatus
+            : (hasActivePlayer || !config_hideItemWhenNoControlChecked
+                ? PlasmaCore.Types.ActiveStatus
+                : PlasmaCore.Types.HiddenStatus))
 
     RowLayout {
         anchors.fill: parent
@@ -325,6 +327,19 @@ PlasmoidItem {
                     ]
                 }
             }
+
+            MouseArea {
+                id: lyricModeMouseArea
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                preventStealing: true
+                onClicked: {
+                    var globalPos = lyricModeMouseArea.mapToGlobal(mouse.x, mouse.y)
+                    matchModePopup.x = globalPos.x
+                    matchModePopup.y = globalPos.y
+                    matchModePopup.visible = true
+                }
+            }
         }
 
         MediaControls {
@@ -359,6 +374,23 @@ PlasmoidItem {
         onPlayRequested: function(uri) {
             Network.playSpotifyTrack(uri)
         }
+    }
+
+    MatchModePopup {
+        id: matchModePopup
+        language: root.config_language
+        currentMode: root.config_playerMode
+        onModeSelected: function(mode) {
+            root.setPlayerMode(mode)
+        }
+    }
+
+    function setPlayerMode(mode) {
+        if (Plasmoid.configuration.playerMode === mode)
+            return
+        Plasmoid.configuration.playerMode = mode
+        Plasmoid.configuration.writeConfig()
+        Network.sendPollRequest()
     }
 
     property bool config_showAlbumCover: Plasmoid.configuration.showAlbumCover
@@ -401,6 +433,7 @@ PlasmoidItem {
     property bool config_dynamicWidth: Plasmoid.configuration.dynamicWidth !== undefined ? Plasmoid.configuration.dynamicWidth : true
     property bool config_enableTextScrolling: Plasmoid.configuration.enableTextScrolling !== undefined ? Plasmoid.configuration.enableTextScrolling : false
     property bool config_hideItemWhenNoControlChecked: Plasmoid.configuration.hideItemWhenNoControlChecked !== undefined ? Plasmoid.configuration.hideItemWhenNoControlChecked : true
+    property bool config_alwaysVisible: Plasmoid.configuration.alwaysVisible !== undefined ? Plasmoid.configuration.alwaysVisible : false
     property int config_playerMode: Plasmoid.configuration.playerMode !== undefined ? Plasmoid.configuration.playerMode : 0
     property bool config_convertToSimplified: Plasmoid.configuration.convertToSimplified !== undefined ? Plasmoid.configuration.convertToSimplified : false
     property bool config_scrollingLyrics: Plasmoid.configuration.scrollingLyrics !== undefined ? Plasmoid.configuration.scrollingLyrics : false

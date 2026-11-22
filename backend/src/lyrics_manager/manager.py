@@ -27,6 +27,7 @@ class LyricsManager(
         self.players_cache = {}
         self._search_cache = {}
         self._fetch_id = 0
+        self._lyrics_skip_id = None
         self._play_order = {}
         self._next_play_order = 0
         self.lock = threading.Lock()
@@ -44,7 +45,8 @@ class LyricsManager(
               playback_status=PlaybackStatus.STOPPED, position_ms=0, available_players=None,
               next_lyric=None, current_lyric_duration_ms=0, time_remaining_ms=0, art_url="",
               has_word_lyrics=False, current_words=None, current_line_start_ms=0,
-              current_line_end_ms=0, karaoke_position_ms=0, extra_lyrics_info=None):
+              current_line_end_ms=0, karaoke_position_ms=0, extra_lyrics_info=None,
+              pure_music=False):
         self.playername = playername
         self.playerobj = playerobj
         self.title = title
@@ -67,6 +69,7 @@ class LyricsManager(
         self.current_line_end_ms = current_line_end_ms
         self.karaoke_position_ms = karaoke_position_ms
         self.extra_lyrics_info = extra_lyrics_info or {}
+        self.pure_music = pure_music
 
     def poll_status(self, requested_playername=None, mode="global", convert_to_simplified=False):
         """
@@ -81,6 +84,8 @@ class LyricsManager(
              == "streaming" => only match Sidra, Cider, YesPlayMusic, Spotube, Tizonia,
                                QQ Music, Spotify, YouTube Music Desktop, Tidal, or Qobuz;
                                the app that started playing first is preferred
+             == "pure"      => follow the active player without matching lyrics; only the
+                               current track title is exposed to the client
 
         In browser/streaming modes the widget tracks the target player while its
         MPRIS interface exists, including paused states, and hides when the
@@ -120,6 +125,7 @@ class LyricsManager(
             mode = (mode or "global").lower()
             if mode == "sidra":
                 mode = "streaming"
+            pure_mode = mode == "pure"
             playing_playernames = find_playing_players(playernames)
             for name in playernames:
                 if name in playing_playernames and name not in self._play_order:
@@ -194,14 +200,33 @@ class LyricsManager(
                 self.artist = track_info['artist']
                 self.album = track_info['album']
                 self._fetch_id += 1
+                fetch_id = self._fetch_id
                 # Check if this track has cached lyrics
                 cache_key = self._make_cache_key(track_info['artist'], track_info['title'])
                 cached_lyrics = self._get_cached_lyrics(cache_key)
                 if cached_lyrics:
                     self.lyrics = cached_lyrics
+                    self._lyrics_skip_id = None
+                elif pure_mode:
+                    # Pure music mode does not fetch or match lyrics.
+                    self.lyrics = None
+                    self._lyrics_skip_id = fetch_id
                 else:
                     self.lyrics = None
-                    threading.Thread(target=self._fetch_lyrics, args=(current_playername, track_info, self._fetch_id), daemon=True).start()
+                    self._lyrics_skip_id = None
+                    threading.Thread(target=self._fetch_lyrics, args=(current_playername, track_info, fetch_id), daemon=True).start()
+            elif (not pure_mode and self.lyrics is None
+                    and self._lyrics_skip_id == self._fetch_id):
+                # The current track was first seen in pure music mode. Fetch its
+                # lyrics now that another mode needs them.
+                self._lyrics_skip_id = None
+                cache_key = self._make_cache_key(track_info['artist'], track_info['title'])
+                cached_lyrics = self._get_cached_lyrics(cache_key)
+                if cached_lyrics:
+                    self.lyrics = cached_lyrics
+                else:
+                    fetch_id = self._fetch_id
+                    threading.Thread(target=self._fetch_lyrics, args=(current_playername, track_info, fetch_id), daemon=True).start()
             self.position_ms = position
             lyrics_info = self._get_lyrics_info(convert_to_simplified)
             self.setup(
@@ -226,7 +251,8 @@ class LyricsManager(
                 current_line_start_ms=lyrics_info["current_line_start_ms"],
                 current_line_end_ms=lyrics_info["current_line_end_ms"],
                 karaoke_position_ms=lyrics_info["position_ms"],
-                extra_lyrics_info=lyrics_info
+                extra_lyrics_info=lyrics_info,
+                pure_music=pure_mode
             )
             return self.get_state()
 
@@ -254,6 +280,13 @@ class LyricsManager(
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         return cleaned if cleaned else artist
 
+    def _clean_display_title(self, title):
+        if not title:
+            return ""
+        cleaned = re.sub(r'[\(（][\u4e00-\u9fff\s·/、]+[\)）]', '', title)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        return cleaned if cleaned else title
+
     def _clean_display_artist(self, artists):
         if not artists:
             return ""
@@ -270,19 +303,21 @@ class LyricsManager(
     def get_state(self):
         if not self.playerobj:
             return self._get_empty_state()
-        lyrics_state = {
-            'current_lyric': self.current_lyric,
-            'next_lyric': getattr(self, 'next_lyric', '') or '',
-            'current_lyric_duration_ms': getattr(self, 'current_lyric_duration_ms', 0) or 0,
-            'time_remaining_ms': getattr(self, 'time_remaining_ms', 0) or 0,
-            'has_synced_lyrics': self._has_synced_lyrics(),
-            'has_word_lyrics': getattr(self, 'has_word_lyrics', False),
-            'current_words': getattr(self, 'current_words', []) or [],
-            'current_line_start_ms': getattr(self, 'current_line_start_ms', 0) or 0,
-            'current_line_end_ms': getattr(self, 'current_line_end_ms', 0) or 0,
-            'position_ms': getattr(self, 'karaoke_position_ms', 0) or 0,
-        }
-        lyrics_state.update(getattr(self, 'extra_lyrics_info', {}) or {})
+        lyrics_state = None
+        if not getattr(self, 'pure_music', False):
+            lyrics_state = {
+                'current_lyric': self.current_lyric,
+                'next_lyric': getattr(self, 'next_lyric', '') or '',
+                'current_lyric_duration_ms': getattr(self, 'current_lyric_duration_ms', 0) or 0,
+                'time_remaining_ms': getattr(self, 'time_remaining_ms', 0) or 0,
+                'has_synced_lyrics': self._has_synced_lyrics(),
+                'has_word_lyrics': getattr(self, 'has_word_lyrics', False),
+                'current_words': getattr(self, 'current_words', []) or [],
+                'current_line_start_ms': getattr(self, 'current_line_start_ms', 0) or 0,
+                'current_line_end_ms': getattr(self, 'current_line_end_ms', 0) or 0,
+                'position_ms': getattr(self, 'karaoke_position_ms', 0) or 0,
+            }
+            lyrics_state.update(getattr(self, 'extra_lyrics_info', {}) or {})
         return {
             "playback_status": self.playback_status.value.lower(),
             "player": {

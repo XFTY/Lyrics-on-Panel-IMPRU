@@ -34,6 +34,7 @@ Kirigami.ScrollablePage {
     property alias cfg_enableTextScrolling: enableTextScrollingCheckBox.checked
     property alias cfg_preferedWidgetWidth: preferedWidgetWidthSpinBox.value
     property alias cfg_hideItemWhenNoControlChecked: hideItemWhenNoControlChecked.checked
+    property alias cfg_alwaysVisible: alwaysVisibleCheckBox.checked
 
     property int cfg_playerMode: 0
 
@@ -108,6 +109,14 @@ Kirigami.ScrollablePage {
                 font: Kirigami.Theme.smallFont
                 opacity: 0.78
             }
+
+            QQC2.Label {
+                QQLayouts.Layout.fillWidth: true
+                text: I18n.tr(appearancePage.language, "纯音乐模式不匹配歌词，仅显示能获取到的歌曲名与艺术家；如果无法获取，则不显示任何内容。")
+                wrapMode: Text.WordWrap
+                font: Kirigami.Theme.smallFont
+                opacity: 0.78
+            }
         }
 
         QQLayouts.ColumnLayout {
@@ -140,6 +149,14 @@ Kirigami.ScrollablePage {
                 QQC2.ButtonGroup.group: playerModeGroup
                 checked: appearancePage.cfg_playerMode === 2
                 onToggled: if (checked) appearancePage.cfg_playerMode = 2
+            }
+
+            QQC2.RadioButton {
+                id: pureMusicModeRadio
+                text: I18n.tr(appearancePage.language, "纯音乐模式")
+                QQC2.ButtonGroup.group: playerModeGroup
+                checked: appearancePage.cfg_playerMode === 3
+                onToggled: if (checked) appearancePage.cfg_playerMode = 3
             }
         }
 
@@ -392,6 +409,14 @@ Kirigami.ScrollablePage {
             id: enableTextScrollingCheckBox
             Kirigami.FormData.label: I18n.tr(appearancePage.language, "文本滚动：")
             text: I18n.tr(appearancePage.language, "歌词超出控件宽度时水平滚动")
+            checkable: true
+        }
+
+        QQC2.CheckBox {
+            id: alwaysVisibleCheckBox
+            Kirigami.FormData.label: I18n.tr(appearancePage.language, "始终显示：")
+            text: I18n.tr(appearancePage.language, "控件始终保持显示，不会因为无播放器或匹配模式而隐藏")
+            QQC2.ToolTip.text: I18n.tr(appearancePage.language, "勾选后控件始终显示，不会因无播放器、匹配模式或播放器关闭而隐藏")
             checkable: true
         }
 

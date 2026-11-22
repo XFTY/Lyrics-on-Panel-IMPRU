@@ -1,3 +1,6 @@
+from .constants import BROWSER_HINTS, STREAMING_HINTS
+
+
 class PlayerSelectionMixin:
     """Player discovery and mode-based selection helpers."""
 

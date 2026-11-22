@@ -1,6 +1,6 @@
 function sendPollRequest() {
     if (pollSocket.status === WebSocket.Open) {
-        var modeNames = ["global", "browser", "streaming"]
+        var modeNames = ["global", "browser", "streaming", "pure"]
         var request = {
             "player": requestedPlayer || null,
             "mode": modeNames[config_playerMode] || "global",

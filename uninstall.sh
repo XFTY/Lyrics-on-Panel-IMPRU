@@ -51,9 +51,15 @@ if [ "$have_user_systemd" = true ]; then
     systemctl --user disable "$SERVICE_NAME" 2>/dev/null || true
 fi
 rm -f "$SERVICE_FILE"
+for wants_dir in "$SERVICE_DIR"/*.wants; do
+    [ -d "$wants_dir" ] || continue
+    rm -f "$wants_dir/$SERVICE_NAME"
+    rmdir "$wants_dir" 2>/dev/null || true
+done
 if [ "$have_user_systemd" = true ]; then
     systemctl --user daemon-reload || true
 fi
+rmdir "$SERVICE_DIR" 2>/dev/null || true
 
 log "Removing Plasma widget $WIDGET_ID"
 if command -v kpackagetool6 >/dev/null 2>&1; then
